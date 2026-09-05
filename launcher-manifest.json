@@ -1,0 +1,29 @@
+{
+  "schema_version": 2,
+  "mod_info": {
+    "name": "SpecOpsTheLineHeadTracking",
+    "version": "0.0.0",
+    "game_id": "spec-ops-the-line"
+  },
+  "strategy": "AsiLoader",
+  "delivery_mode": "install_cmd",
+
+  "loader": {
+    "archives": [],
+    "detect": [
+      "Binaries/Win32/dinput8.dll"
+    ],
+    "seed": []
+  },
+
+  "files": [
+    {
+      "source": "plugins/SpecOpsTheLineHeadTracking.asi",
+      "target": "Binaries/Win32/SpecOpsTheLineHeadTracking.asi"
+    }
+  ],
+
+  "runtime_requirements": [],
+
+  "dependencies": []
+}

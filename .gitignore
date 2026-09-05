@@ -1,0 +1,93 @@
+# Build output
+bin/
+obj/
+out/
+build/
+build-tests/
+x64/
+Win32/
+Debug/
+Release/
+*.dll
+*.asi
+*.exe
+*.pdb
+*.lib
+*.exp
+*.ilk
+
+# Vendored third-party binaries (overrides *.dll/*.exe above)
+!vendor/**/*.dll
+!vendor/**/*.exe
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.user
+*.vcxproj.user
+*.suo
+
+# Game libs (referenced at build time, never committed)
+libs/
+
+# Release packaging
+release/
+dist/
+
+# Per-game install state
+.headtracking-state.json
+
+# Pixi
+.pixi/
+
+# AI tooling and local notes
+.claude/
+.lab/
+.millhouse/
+AGENTS.md
+CLAUDE.md
+CLAUDE.local.md
+NEXUS_MODS.md
+GEMINI.md
+.gemini/
+.cursor/
+.cursorrules
+.windsurfrules
+.aider*
+.codex/
+.opencode/
+.continue/
+.github/copilot-instructions.md
+skills/
+.skills/
+
+# MCP servers
+.mcp/
+.mcp.json
+*.mcp.json
+mcp-servers/
+
+# Reverse engineering and session scratch output
+ghidra/
+.ghidra/
+*.gpr
+*.rep
+*.gzf
+dumps/
+*.dmp
+traces/
+screenshots/
+scratch/
+scratchpad/
+
+# OS
+.DS_Store
+Thumbs.db
+mcp.json
