@@ -6,17 +6,14 @@
     "game_id": "spec-ops-the-line"
   },
   "strategy": "AsiLoader",
-  "delivery_mode": "install_cmd",
-
-  "loader": {
-    "archives": [],
-    "detect": [
-      "Binaries/Win32/dinput8.dll"
-    ],
-    "seed": []
-  },
+  "delivery_mode": "manifest",
 
   "files": [
+    {
+      "source": "vendor/ultimate-asi-loader/dinput8.dll",
+      "target": "Binaries/Win32/dinput8.dll",
+      "backup": true
+    },
     {
       "source": "plugins/SpecOpsTheLineHeadTracking.asi",
       "target": "Binaries/Win32/SpecOpsTheLineHeadTracking.asi"
