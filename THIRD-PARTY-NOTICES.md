@@ -23,7 +23,7 @@ sets out the terms the clip is kept under and applies from the moment it lands.
 | MemoryModule | `5f83e41` (inside Ultimate ASI Loader v9.7.4) | MPL-2.0 | Compiled into the vendored dinput8.dll |
 | d3d8to9 | `65870f2` (inside Ultimate ASI Loader v9.7.4) | BSD-2-Clause | Compiled into the vendored dinput8.dll |
 | MinHook | vendored source, repo commit `832688e` | BSD-2-Clause | Compiled into `SpecOpsTheLineHeadTracking.asi` |
-| cameraunlock-core | 660b1f897fac6ec894efd15235642300cc6d7e79 | MIT | Compiled into `SpecOpsTheLineHeadTracking.asi` |
+| cameraunlock-core | c480d8a8177753966a7d33b857f1db12f5e9fe39 | MIT | Compiled into `SpecOpsTheLineHeadTracking.asi` |
 | OpenTrack | n/a | ISC | Not bundled; UDP protocol interoperability only |
 
 ---
@@ -746,7 +746,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 Git submodule at `cameraunlock-core/`. Our own code, MIT licensed, reproduced here
 so the notices are complete.
 
-- **Version:** pinned commit `660b1f897fac6ec894efd15235642300cc6d7e79`
+- **Version:** pinned commit `c480d8a8177753966a7d33b857f1db12f5e9fe39`
 - **License:** MIT
 - **Upstream:** https://github.com/itsloopyo/cameraunlock-core
 - **Usage:** Compiled into `SpecOpsTheLineHeadTracking.asi`, providing the shared
