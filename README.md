@@ -8,6 +8,7 @@ An unofficial head tracking mod for Spec Ops: The Line that moves the camera wit
 
 - **Decoupled look and aim** - head tracking moves the rendered view; aim stays on your mouse or controller
 - **Parallax-correct crosshair** - the game's own crosshair is moved onto the point the shot lands on, not just its direction
+- **Works with any OpenTrack compatible tracker** - free options available for PC, iOS and Android
 - **6DOF positional tracking** - lean and peek with head position
 
 ## Requirements
@@ -17,6 +18,13 @@ An unofficial head tracking mod for Spec Ops: The Line that moves the camera wit
 - Windows 10 or 11. The game is 32-bit, so the mod ships as a 32-bit `.asi`.
 
 ## Installation
+
+### Lopari
+
+Download [Lopari](https://lopari.app), choose **Spec Ops: The Line**, and click
+**Play with head tracking**.
+
+### Standalone Installer
 
 1. Download the installer ZIP from the [Releases page](https://github.com/itsloopyo/spec-ops-the-line-headtracking/releases).
 2. Extract it anywhere.
