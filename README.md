@@ -2,14 +2,13 @@
 
 ![Spec Ops: The Line running with this mod](https://raw.githubusercontent.com/itsloopyo/spec-ops-the-line-headtracking/main/assets/readme-clip.gif)
 
-An unofficial head tracking mod for Spec Ops: The Line that moves the camera with your head while your mouse or controller keeps aiming, driven by OpenTrack over UDP, with no VR headset required.
+An unofficial head tracking mod for Spec Ops: The Line that moves the camera with your head while your mouse or controller keeps aiming, driven by a webcam, phone, or any OpenTrack compatible tracker, with no VR headset required.
 
 ## Features
 
 - **Decoupled look and aim** - head tracking moves the rendered view; aim stays on your mouse or controller
-- **Parallax-correct crosshair** - the game's own crosshair is moved onto the point the shot lands on, not just its direction
+- **6DOF tracking** - yaw, pitch and roll plus positional lean and peek
 - **Works with any OpenTrack compatible tracker** - free options available for PC, iOS and Android
-- **6DOF positional tracking** - lean and peek with head position
 
 ## Requirements
 
