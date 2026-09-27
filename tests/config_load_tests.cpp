@@ -13,7 +13,7 @@ using namespace SpecOpsTheLineHeadTracking::legacy;
 
 namespace {
 
-// IniReader reads through GetPrivateProfileString, which resolves a relative path
+// The frozen reader reads through the Win32 profile API, which resolves a relative path
 // against the Windows directory rather than the working directory and keeps a cache of
 // the file it last read. So every case gets an absolute path of its own under TEMP.
 std::string IniPath(const char* tag) {

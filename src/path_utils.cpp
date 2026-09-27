@@ -118,9 +118,9 @@ std::string LegacyAnsiPath(const std::wstring& path) {
         }
         if (!NarrowPath(std::wstring(shortDir.data()), &narrowDir)) {
             // 8.3 alias generation is off for this volume, so the path has no ASCII
-            // spelling. Returning the bare filename instead would send
-            // GetPrivateProfileString to the Windows directory, to read someone else's
-            // file as this mod's config.
+            // spelling. Returning the bare filename instead would send the Win32 profile
+            // API to the Windows directory, to read someone else's file as this mod's
+            // config.
             return {};
         }
     }
