@@ -1,10 +1,10 @@
 #include "test_support.h"
 
-#include "config_sanitize.h"
+#include "legacy_config/config_sanitize.h"
 
 #include <limits>
 
-using namespace SpecOpsTheLineHeadTracking;
+using namespace SpecOpsTheLineHeadTracking::legacy;
 
 namespace {
 

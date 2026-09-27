@@ -29,6 +29,7 @@ set(MOD_SOURCES
     src/dllmain.cpp
     src/aim_marker.cpp
     src/config.cpp
+    src/legacy_config/legacy_config.cpp
     src/path_utils.cpp
     src/hotkeys.cpp
     src/tracking_runtime.cpp
