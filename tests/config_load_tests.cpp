@@ -1,6 +1,6 @@
 #include "test_support.h"
 
-#include "config.h"
+#include "legacy_config/legacy_config.h"
 
 #include <windows.h>
 
@@ -9,7 +9,7 @@
 #include <fstream>
 #include <string>
 
-using namespace SpecOpsTheLineHeadTracking;
+using namespace SpecOpsTheLineHeadTracking::legacy;
 
 namespace {
 
@@ -27,136 +27,8 @@ void WriteIni(const std::string& path, const char* body) {
     f << body;
 }
 
-// A missing file is written with the shipped defaults, and reading that file back gives
-// exactly those defaults.
-//
-// This does NOT prove the writer and the reader agree on key NAMES: a key written as
-// "LimitZback" and read as "LimitZBack" would fall through to the same default constant
-// and every check below would still pass. WriterEmitsEveryKeyTests covers that.
-int DefaultsRoundTripTests() {
-    int failures = 0;
-    const std::string path = IniPath("defaults");
-    std::remove(path.c_str());
-
-    Config created;
-    CHECK(created.LoadOrCreate(path.c_str()));
-    CHECK(std::ifstream(path.c_str()).good());
-
-    Config cfg;
-    CHECK(cfg.LoadOrCreate(path.c_str()));
-
-    CHECK(cfg.enabled_on_startup == true);
-    CHECK(cfg.udp_port == 4242);
-    CHECK(cfg.data_freshness_ms == 500);
-    CHECK(cfg.world_space_yaw == true);
-    CHECK(cfg.show_aim_marker == false);
-    CHECK_NEAR(cfg.fov_scale, 1.0, 1e-6);
-    CHECK_NEAR(cfg.local_smoothing, 0.0, 1e-6);
-    CHECK_NEAR(cfg.remote_smoothing, 0.15, 1e-6);
-    CHECK(cfg.position_enabled == true);
-    CHECK_NEAR(cfg.pos_limit_x, 0.30, 1e-6);
-    CHECK_NEAR(cfg.pos_limit_y, 0.20, 1e-6);
-    CHECK_NEAR(cfg.pos_limit_y_down, 0.20, 1e-6);
-    CHECK_NEAR(cfg.pos_limit_z, 0.40, 1e-6);
-    CHECK_NEAR(cfg.pos_limit_z_back, 0.10, 1e-6);
-    CHECK_NEAR(cfg.position_scale, 100.0, 1e-6);
-    CHECK(cfg.collision_enabled == true);
-    CHECK_NEAR(cfg.collision_padding, 10.0, 1e-6);
-    CHECK(cfg.vk_toggle == 0x23);
-    CHECK(cfg.vk_cycle_mode == 0x21);
-    CHECK(cfg.vk_yaw_mode == 0x22);
-    CHECK(cfg.chord_toggle == true);
-
-    std::remove(path.c_str());
-    return failures;
-}
-
-// Reads the file WriteDefaultIni actually produced and asserts each section and key name
-// is literally in it.
-//
-// This is the half that pins the WRITER. Neither of the other two config tests can:
-// DefaultsRoundTripTests reads a key the writer misnamed, falls through to the same
-// default constant it then asserts, and passes; ReaderKeyNamesTests hand-writes its own
-// fixture, so it pins the reader against the test and never touches the writer. Rename a
-// key in WriteDefaultIni alone and only this test fails.
-int WriterEmitsEveryKeyTests() {
-    int failures = 0;
-    const std::string path = IniPath("writerkeys");
-    std::remove(path.c_str());
-
-    Config created;
-    CHECK(created.LoadOrCreate(path.c_str()));
-
-    std::ifstream file(path.c_str(), std::ios::binary);
-    const std::string text((std::istreambuf_iterator<char>(file)),
-                           std::istreambuf_iterator<char>());
-    file.close();
-    CHECK(!text.empty());
-
-    static const char* kExpected[] = {
-        "[General]", "EnableOnStartup=", "Port=", "DataFreshnessMs=", "WorldSpaceYaw=",
-        "ShowAimMarker=",
-        "[FieldOfView]", "Scale=",
-        "[Smoothing]", "LocalSmoothing=", "RemoteSmoothing=",
-        "[Position]", "Enabled=", "LimitX=", "LimitY=", "LimitYDown=", "LimitZ=",
-        "LimitZBack=", "PositionScale=",
-        "[Collision]", "Padding=",
-        "[Hotkeys]", "Toggle=", "CycleMode=", "YawMode=", "ChordToggle=",
-        "ChordCycleMode=", "ChordYawMode=",
-    };
-    for (const char* key : kExpected) {
-        const bool present = text.find(key) != std::string::npos;
-        failures += ReportCheck(present, key, __FILE__, __LINE__);
-    }
-
-    // "LimitY=" is a prefix of "LimitYDown=", so the check above cannot tell a file that
-    // has both from one that has only the longer key. Pin the shorter one on its own.
-    CHECK(text.find("\nLimitY=") != std::string::npos ||
-          text.find("\rLimitY=") != std::string::npos);
-
-    // Names alone do not pin which SECTION a key landed in, and every reader looks its
-    // key up under one specific section. PositionScale drifting into [Hotkeys] keeps its
-    // name, so every check above still passes, while the reader finds nothing and falls
-    // back to the default.
-    static const struct { const char* section; const char* key; } kPlacement[] = {
-        { "[General]", "EnableOnStartup=" }, { "[General]", "ShowAimMarker=" },
-        { "[FieldOfView]", "Scale=" },
-        { "[Smoothing]", "LocalSmoothing=" }, { "[Smoothing]", "RemoteSmoothing=" },
-        { "[Position]", "Enabled=" },        { "[Position]", "LimitYDown=" },
-        { "[Position]", "PositionScale=" },
-        { "[Collision]", "Enabled=" },       { "[Collision]", "Padding=" },
-        { "[Hotkeys]", "Toggle=" },          { "[Hotkeys]", "ChordYawMode=" },
-    };
-    static const char* kAllSections[] = { "[General]", "[FieldOfView]", "[Smoothing]",
-                                          "[Position]", "[Collision]", "[Hotkeys]" };
-    for (const auto& entry : kPlacement) {
-        const size_t section = text.find(entry.section);
-        // Searched from the section header rather than from the start of the file:
-        // [Position] and [Collision] both have an Enabled key, and a global search would
-        // answer both placement checks with the first one.
-        const size_t key = text.find(entry.key, section);
-        bool placed = section != std::string::npos && key != std::string::npos &&
-                      key > section;
-        if (placed) {
-            // No other section header may sit between the header and the key.
-            for (const char* header : kAllSections) {
-                const size_t other = text.find(header);
-                if (other != std::string::npos && other > section && other < key) {
-                    placed = false;
-                    break;
-                }
-            }
-        }
-        failures += ReportCheck(placed, entry.key, __FILE__, __LINE__);
-    }
-
-    std::remove(path.c_str());
-    return failures;
-}
-
-// Every key the reader consults, given a NON-default value in a hand-written file. This
-// pins the READER's names; WriterEmitsEveryKeyTests above pins the writer's. Both are
-// needed - a name that drifts in one place only fails one of them.
+// Every key the frozen reader consults, given a NON-default value in a hand-written file,
+// which pins the reader's names.
 int ReaderKeyNamesTests() {
     int failures = 0;
     const std::string path = IniPath("keynames");
@@ -192,7 +64,7 @@ int ReaderKeyNamesTests() {
              "ChordYawMode=false\r\n");
 
     Config cfg;
-    CHECK(cfg.LoadOrCreate(path.c_str()));
+    CHECK((cfg.Read(path.c_str()).status == ReadStatus::Read));
 
     CHECK(cfg.enabled_on_startup == false);
     CHECK(cfg.udp_port == 5555);
@@ -234,7 +106,7 @@ int VerticalLimitsAreIndependentTests() {
              "LimitYDown=0.05\r\n");
 
     Config cfg;
-    CHECK(cfg.LoadOrCreate(path.c_str()));
+    CHECK((cfg.Read(path.c_str()).status == ReadStatus::Read));
     CHECK_NEAR(cfg.pos_limit_y, 0.45, 1e-6);
     CHECK_NEAR(cfg.pos_limit_y_down, 0.05, 1e-6);
 
@@ -244,7 +116,7 @@ int VerticalLimitsAreIndependentTests() {
              "[Position]\r\n"
              "LimitYDown=-0.3\r\n");
     Config negative;
-    CHECK(negative.LoadOrCreate(path.c_str()));
+    CHECK((negative.Read(path.c_str()).status == ReadStatus::Read));
     CHECK_NEAR(negative.pos_limit_y_down, 0.0, 1e-6);
 
     // An INI written before LimitYDown existed carries LimitY alone, and has to give
@@ -254,7 +126,7 @@ int VerticalLimitsAreIndependentTests() {
              "[Position]\r\n"
              "LimitY=0.45\r\n");
     Config mirrored;
-    CHECK(mirrored.LoadOrCreate(path.c_str()));
+    CHECK((mirrored.Read(path.c_str()).status == ReadStatus::Read));
     CHECK_NEAR(mirrored.pos_limit_y, 0.45, 1e-6);
     CHECK_NEAR(mirrored.pos_limit_y_down, 0.45, 1e-6);
 
@@ -262,7 +134,7 @@ int VerticalLimitsAreIndependentTests() {
              "[Position]\r\n"
              "LimitY=0.05\r\n");
     Config tightened;
-    CHECK(tightened.LoadOrCreate(path.c_str()));
+    CHECK((tightened.Read(path.c_str()).status == ReadStatus::Read));
     CHECK_NEAR(tightened.pos_limit_y, 0.05, 1e-6);
     CHECK_NEAR(tightened.pos_limit_y_down, 0.05, 1e-6);
 
@@ -291,7 +163,7 @@ int RetiredShapingKeysAreIgnoredTests() {
              "LimitY=0.33\r\n");
 
     Config cfg;
-    CHECK(cfg.LoadOrCreate(path.c_str()));
+    CHECK((cfg.Read(path.c_str()).status == ReadStatus::Read));
     // The live keys in the same sections are still read correctly.
     CHECK_NEAR(cfg.local_smoothing, 0.3, 1e-6);
     CHECK_NEAR(cfg.pos_limit_y, 0.33, 1e-6);
@@ -323,7 +195,7 @@ int ValueReadTests() {
              "Toggle=0x24\r\n");
 
     Config cfg;
-    CHECK(cfg.LoadOrCreate(path.c_str()));
+    CHECK((cfg.Read(path.c_str()).status == ReadStatus::Read));
     CHECK(cfg.enabled_on_startup == false);
     CHECK(cfg.udp_port == 5000);
     CHECK(cfg.world_space_yaw == false);
@@ -353,7 +225,7 @@ int SanitizationTests() {
              "DeadzoneDeg=-3.0\r\n");
 
     Config cfg;
-    CHECK(cfg.LoadOrCreate(path.c_str()));
+    CHECK((cfg.Read(path.c_str()).status == ReadStatus::Read));
     CHECK_NEAR(cfg.fov_scale, 2.0, 1e-6);
     CHECK_NEAR(cfg.local_smoothing, 1.0, 1e-6);
     CHECK_NEAR(cfg.remote_smoothing, 0.15, 1e-6);
@@ -370,19 +242,19 @@ int PortRangeTests() {
     const std::string low = IniPath("port_low");
     WriteIni(low, "[General]\r\nPort=80\r\n");
     Config lowCfg;
-    CHECK(!lowCfg.LoadOrCreate(low.c_str()));
+    CHECK(lowCfg.Read(low.c_str()).status == ReadStatus::Refused);
     std::remove(low.c_str());
 
     const std::string high = IniPath("port_high");
     WriteIni(high, "[General]\r\nPort=70000\r\n");
     Config highCfg;
-    CHECK(!highCfg.LoadOrCreate(high.c_str()));
+    CHECK(highCfg.Read(high.c_str()).status == ReadStatus::Refused);
     std::remove(high.c_str());
 
     const std::string edge = IniPath("port_edge");
     WriteIni(edge, "[General]\r\nPort=1024\r\n");
     Config edgeCfg;
-    CHECK(edgeCfg.LoadOrCreate(edge.c_str()));
+    CHECK((edgeCfg.Read(edge.c_str()).status == ReadStatus::Read));
     CHECK(edgeCfg.udp_port == 1024);
     std::remove(edge.c_str());
 
@@ -407,7 +279,7 @@ int PositionValuesAreCheckedTests() {
              "PositionScale=inf\r\n");
 
     Config cfg;
-    CHECK(cfg.LoadOrCreate(path.c_str()));
+    CHECK((cfg.Read(path.c_str()).status == ReadStatus::Read));
     CHECK_NEAR(cfg.pos_limit_x, 0.0, 1e-6);
     CHECK_NEAR(cfg.pos_limit_y, 0.20, 1e-6);
     CHECK_NEAR(cfg.pos_limit_y_down, 0.20, 1e-6);
@@ -426,7 +298,7 @@ int DataFreshnessTests() {
     WriteIni(path, "[General]\r\nDataFreshnessMs=0\r\n");
 
     Config cfg;
-    CHECK(cfg.LoadOrCreate(path.c_str()));
+    CHECK((cfg.Read(path.c_str()).status == ReadStatus::Read));
     CHECK(cfg.data_freshness_ms == 500);
 
     std::remove(path.c_str());
@@ -446,7 +318,7 @@ int HotkeyRangeTests() {
              "CycleMode=0xFF\r\n"
              "YawMode=0x7A\r\n");
     Config cfg;
-    CHECK(cfg.LoadOrCreate(bad.c_str()));
+    CHECK((cfg.Read(bad.c_str()).status == ReadStatus::Read));
     CHECK(cfg.vk_toggle == 0x23);
     CHECK(cfg.vk_cycle_mode == 0x21);
     // In range, so the user's own choice survives untouched.
@@ -457,7 +329,7 @@ int HotkeyRangeTests() {
     const std::string unbound = IniPath("hotkeys_unbound");
     WriteIni(unbound, "[Hotkeys]\r\nToggle=0x0\r\n");
     Config unboundCfg;
-    CHECK(unboundCfg.LoadOrCreate(unbound.c_str()));
+    CHECK((unboundCfg.Read(unbound.c_str()).status == ReadStatus::Read));
     CHECK(unboundCfg.vk_toggle == 0);
     std::remove(unbound.c_str());
 
@@ -465,7 +337,7 @@ int HotkeyRangeTests() {
     const std::string edge = IniPath("hotkeys_edge");
     WriteIni(edge, "[Hotkeys]\r\nToggle=0xFE\r\nCycleMode=0x1\r\n");
     Config edgeCfg;
-    CHECK(edgeCfg.LoadOrCreate(edge.c_str()));
+    CHECK((edgeCfg.Read(edge.c_str()).status == ReadStatus::Read));
     CHECK(edgeCfg.vk_toggle == 0xFE);
     CHECK(edgeCfg.vk_cycle_mode == 0x1);
     std::remove(edge.c_str());
@@ -477,8 +349,7 @@ int HotkeyRangeTests() {
 
 int RunConfigLoadTests() {
     std::printf("Config load\n");
-    int failures = DefaultsRoundTripTests();
-    failures += WriterEmitsEveryKeyTests();
+    int failures = 0;
     failures += ReaderKeyNamesTests();
     failures += VerticalLimitsAreIndependentTests();
     failures += RetiredShapingKeysAreIgnoredTests();

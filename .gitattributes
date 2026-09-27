@@ -50,3 +50,7 @@
 # sources are compared byte for byte, so git must not touch their line endings.
 tests/config_differential/data/** -text
 tests/config_differential/oracle/** -text
+
+# The committed copy of the CameraUnlock.ini the mod creates; its render test compares it byte
+# for byte, CRLF included.
+config/CameraUnlock.ini -text

@@ -87,11 +87,12 @@ std::wstring GetModulePathW(const char* filename) {
     return wide;
 }
 
-std::string GetModulePath(const char* filename) {
-    const std::wstring dir = GetModuleDirectoryW();
-    if (dir.empty()) {
+std::string LegacyAnsiPath(const std::wstring& path) {
+    const size_t lastSlash = path.find_last_of(L"\\/");
+    if (lastSlash == std::wstring::npos) {
         return {};
     }
+    const std::wstring dir = path.substr(0, lastSlash + 1);
 
     std::string narrowDir;
     if (!NarrowPath(dir, &narrowDir)) {
@@ -102,9 +103,7 @@ std::string GetModulePath(const char* filename) {
         //
         // Aliased on the DIRECTORY, which always exists. GetShortPathNameW resolves each
         // component on disk, so pointing it at the file would fail with
-        // ERROR_FILE_NOT_FOUND on the very first launch - before the INI has been
-        // written - and the INI is only ever written after this returns. That is a
-        // fallback that could never once have fired.
+        // ERROR_FILE_NOT_FOUND for a file that is not there.
         std::vector<wchar_t> shortDir(MAX_PATH);
         for (;;) {
             const DWORD written = GetShortPathNameW(dir.c_str(), shortDir.data(),
@@ -126,9 +125,11 @@ std::string GetModulePath(const char* filename) {
         }
     }
 
-    // The filename is an ASCII literal from this file, so appending it after the
-    // conversion keeps it out of the codepage question entirely.
-    return narrowDir + filename;
+    // The file name is the ASCII kLegacyConfigFileName, so narrowing it is a byte-for-byte copy.
+    for (size_t i = lastSlash + 1; i < path.size(); ++i) {
+        narrowDir.push_back(static_cast<char>(path[i]));
+    }
+    return narrowDir;
 }
 
 

@@ -10,13 +10,16 @@
 #include "reticle_overlay.h"
 #include "tracking_runtime.h"
 
+#include "cameraunlock/config/config_owner.h"
 #include "cameraunlock/diagnostics/crash_handler.h"
 #include "cameraunlock/memory/pe_fingerprint.h"
+#include "cameraunlock/tracking/tracking_mode.h"
 
 #include <windows.h>
 #include <process.h>
 
 #include <string>
+#include <utility>
 
 namespace {
 
@@ -26,8 +29,7 @@ constexpr const char* kModName    = "SpecOpsTheLineHeadTracking";
 constexpr const char* kModVersion = "0.0.0";
 constexpr const char* kGameExe    = "SpecOpsTheLine.exe";
 
-// All three live next to the game EXE, alongside the loader.
-constexpr const char* kIniFileName     = "SpecOpsTheLineHeadTracking.ini";
+// The log and the config files live next to the game EXE, alongside the loader.
 constexpr const char* kLogFileName     = "SpecOpsTheLineHeadTracking.log";
 
 constexpr int kInitMaxWaitMs   = 30000;
@@ -51,6 +53,37 @@ HANDLE g_shutdownEvent = nullptr;
 
 TrackingRuntime g_tracking;
 Hotkeys         g_hotkeys;
+
+// The one reader and writer of CameraUnlock.ini, never destroyed: the hotkey thread saves
+// through it, and it must outlive that thread whatever order teardown runs in. Built and loaded
+// on the init thread before the hotkeys start.
+cameraunlock::config::ConfigOwner<Config>* g_configOwner = nullptr;
+
+// A save that did not happen has already reached the log through the status sink; the session
+// keeps the state the toggle applied. A save that did can carry a line too, naming a row that
+// stopped following Defaults.ini.
+void LogSave(const cameraunlock::config::ConfigSaveResult& saved) {
+    for (const std::string& line : saved.log) Log::Line("%s", line.c_str());
+    if (saved.status != cameraunlock::config::ConfigSaveStatus::Saved) {
+        Log::Line("WARN: the change applies for this session only.");
+    }
+}
+
+// Each toggle applies its new state first, then saves it. End is not here: it changes the
+// session only, and EnableOnStartup decides the next start.
+void CycleTrackingModeAndSave() {
+    const cameraunlock::TrackingModeChannels channels =
+        cameraunlock::EncodeTrackingMode(g_tracking.CycleTrackingMode());
+    LogSave(g_configOwner->Save([channels](Config& c) {
+        c.rotation_enabled = channels.rotation_enabled;
+        c.position_enabled = channels.position_enabled;
+    }));
+}
+
+void ToggleYawModeAndSave() {
+    const bool worldSpace = g_tracking.ToggleYawMode();
+    LogSave(g_configOwner->Save([worldSpace](Config& c) { c.world_space_yaw = worldSpace; }));
+}
 
 // Every wait in this file goes through here, so unload never has to outlast a poll
 // interval: the event is signalled on detach and each loop unwinds within kInitPollMs
@@ -125,23 +158,34 @@ void OpenSessionLog() {
     cameraunlock::diagnostics::InstallCrashHandler();
 }
 
+// False when the mod must not start: no folder to read the settings from, or a legacy file
+// the build that wrote it refused to start on, which this build refuses too until the player
+// fixes it.
 bool LoadConfig(Config& cfg) {
-    const std::string iniPath = GetModulePath(kIniFileName);
-    if (iniPath.empty()) {
-        // Never fall back to the bare filename: GetPrivateProfileString resolves a
-        // relative path against the Windows directory, so the mod would read an INI
-        // that is not the user's and report every setting as its default.
-        Log::Line("ERROR: could not resolve the path to %s beside this DLL; "
-                  "staying dormant", kIniFileName);
+    // One game process loads this mod, so one process opens this folder's config.
+    const std::wstring folder = GetModuleDirectoryW();
+    if (folder.empty()) {
+        Log::Line("ERROR: the folder this mod was loaded from could not be read, so there is "
+                  "nowhere to read the settings from; staying dormant");
         return false;
     }
-    if (!cfg.LoadOrCreate(iniPath.c_str())) {
+    cameraunlock::config::ConfigOwnerOptions<Config> options =
+        MakeConfigOwnerOptions(folder, cameraunlock::config::DefaultsFile::PerUser());
+    // The log is the only place this mod can tell the player anything.
+    options.status_sink = [](const std::string& message) { Log::Line("WARN: %s", message.c_str()); };
+    g_configOwner = new cameraunlock::config::ConfigOwner<Config>(std::move(options));
+
+    const cameraunlock::config::ConfigLoadResult<Config> loaded = g_configOwner->Load();
+    for (const std::string& line : loaded.log) Log::Line("%s", line.c_str());
+    Log::Line("Config: %s", cameraunlock::config::ConfigLoadStatusName(loaded.status));
+    if (loaded.status == cameraunlock::config::ConfigLoadStatus::LegacyRefused) {
         Log::Line("ERROR: Config load failed");
         return false;
     }
-    Log::Line("Config: port=%u enabled=%d smoothing=local %.2f/remote %.2f "
+    cfg = loaded.config;
+    Log::Line("Config: port=%d enabled=%d smoothing=local %.2f/remote %.2f "
               "position=%d fov scale=%.3f",
-              cfg.udp_port, cfg.enabled_on_startup ? 1 : 0,
+              cfg.udp_port, cfg.enable_on_startup ? 1 : 0,
               cfg.local_smoothing, cfg.remote_smoothing,
               cfg.position_enabled ? 1 : 0, cfg.fov_scale);
     return true;
@@ -151,8 +195,8 @@ bool StartTrackingAndHotkeys(const Config& cfg) {
     g_tracking.Start(cfg);
     if (!g_hotkeys.Start(cfg,
                          [] { g_tracking.ToggleEnabled(); },
-                         [] { g_tracking.CycleTrackingMode(); },
-                         [] { g_tracking.ToggleYawMode(); })) {
+                         [] { CycleTrackingModeAndSave(); },
+                         [] { ToggleYawModeAndSave(); })) {
         Log::Line("ERROR: Hotkeys start failed");
         g_tracking.Stop();
         return false;
@@ -362,7 +406,9 @@ unsigned __stdcall InitThread(void*) {
     // while the engine boots and a CreateDevice hook installed after that never fires.
     // This patches d3d9.dll, not the game image, so it is outside the regions the game's
     // startup integrity check covers.
-    if (!InstallReticleOverlay(cfg.show_aim_marker)) {
+    // The mod's own aim marker is a diagnostic with no setting, so it is not drawn. The overlay
+    // still arms: it reports the presented image's size, which the crosshair follows.
+    if (!InstallReticleOverlay(false)) {
         Log::Line("WARN: the D3D9 overlay is unavailable, so the presented image's size "
                   "is unknown and the game's crosshair will stay at screen centre "
                   "instead of following the aim point");

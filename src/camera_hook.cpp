@@ -41,12 +41,11 @@ void*            g_fovCallSite = nullptr;
 // once into a local for the whole detour: a plain pointer tested and then dereferenced
 // lets the clear land between the two.
 std::atomic<TrackingRuntime*> g_tracking{nullptr};
-float            g_positionScale = 100.0f;
 float            g_fovScale = 1.0f;
 // Whether a lean is stopped at the level's geometry, and how far short of a surface the
 // leaned view stops, in engine units (centimetres).
-bool             g_collisionEnabled = defaults::kCollisionEnabled;
-float            g_collisionPadding = defaults::kCollisionPadding;
+bool             g_collisionEnabled = true;
+float            g_collisionPadding = 10.0f;
 // Incremented in the detours on the game thread and read on the heartbeat thread. Plain
 // longs here are a data race whose practical cost is a wrong diagnosis rather than a
 // wrong number: nothing stops the heartbeat's read being hoisted out of its loop, which
@@ -297,9 +296,9 @@ Lean ApplyHeadPose(TrackingRuntime& tracking, UE3Vector* outLoc, UE3Rotator* out
         const float right[3] = { -sy,  cy,   0.0f };
         const float up[3]    = { 0.0f, 0.0f, 1.0f };
 
-        const float oR = -s.pos_x * g_positionScale;
-        const float oU =  s.pos_y * g_positionScale;
-        const float oF = -s.pos_z * g_positionScale;
+        const float oR = -s.pos_x * kWorldUnitsPerMetre;
+        const float oU =  s.pos_y * kWorldUnitsPerMetre;
+        const float oF = -s.pos_z * kWorldUnitsPerMetre;
         lean.ruf[0] = oR;
         lean.ruf[1] = oU;
         lean.ruf[2] = oF;
@@ -516,10 +515,9 @@ void InstallFovHook(std::uintptr_t address) {
 bool InstallCameraHook(const CameraHookTargets& targets, TrackingRuntime& tracking,
                        const Config& cfg) {
     g_tracking.store(&tracking, std::memory_order_release);
-    g_positionScale = cfg.position_scale;
     g_fovScale = cfg.fov_scale;
     g_collisionEnabled = cfg.collision_enabled;
-    g_collisionPadding = cfg.collision_padding;
+    g_collisionPadding = cfg.lean_clamp.skin;
     g_sceneViewCallSite = reinterpret_cast<void*>(targets.sceneViewCallSite);
     g_fovCallSite = reinterpret_cast<void*>(targets.fovCallSite);
 

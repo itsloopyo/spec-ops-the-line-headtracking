@@ -41,8 +41,9 @@ public:
     bool IsReceiving() const { return m_receiver.IsReceiving(); }
 
     void ToggleEnabled();
-    void CycleTrackingMode();
-    void ToggleYawMode();
+    // Each returns the state it switched to.
+    cameraunlock::TrackingMode CycleTrackingMode();
+    bool ToggleYawMode();
 
     bool IsWorldSpaceYaw() const { return m_worldSpaceYaw.load(std::memory_order_relaxed); }
 

@@ -125,77 +125,133 @@ Two equivalent binding sets - use whichever your keyboard has:
 
 Centring is done in your tracker app: Center in opentrack, CENTER in Headcam, or the equivalent in whatever you run.
 
-`Page Up` / `Ctrl+Shift+G` cycles tracking mode:
+`Page Up` / `Ctrl+Shift+G` cycles tracking mode: full tracking, then rotation only, then position only, then back to full.
 
-1. Normal head-tracked gameplay
-2. Positional tracking disabled, rotational tracking enabled
-3. Rotational tracking disabled, positional tracking enabled
-4. Back to normal
+`Page Down` / `Ctrl+Shift+H` switches head yaw between horizon-locked and camera-local. Horizon-locked is the default and keeps "up" where it is however the mouse is pitched.
+
+The tracking mode and the yaw mode are saved to `CameraUnlock.ini` as soon as you change them, and come back at the next start. `End` / `Ctrl+Shift+Y` changes the current session only: whether tracking is on at startup is `EnableOnStartup`.
+
+Each action's keys are a list in the `[Hotkeys]` section of `CameraUnlock.ini`, the chord included, so any of them can be rebound or removed.
 
 ## Configuration
 
-The config file is generated on first run next to `dinput8.dll` at `Binaries/Win32/SpecOpsTheLineHeadTracking.ini`. Defaults follow CameraUnlock standards.
+Apart from creating `CameraUnlock.ini` at startup when there is none, the mod writes to it only when a hotkey changes the tracking mode or the yaw mode. It never writes `SpecOpsTheLineHeadTracking.ini`, and it creates `Defaults.ini` only when there is none and never changes it. Edit `CameraUnlock.ini` with the game closed.
 
-Put each comment on its own line, above the key. A `true`/`false` or text setting compares the whole text after `=`, so a trailing `; note` makes the comparison fail and the setting silently keeps its default. Numeric settings read the number off the front of the text, which is why some lines below still carry one.
+<!-- cameraunlock:config -->
+The mod reads its settings from `Binaries\Win32\CameraUnlock.ini` in the game folder, and creates the file when it starts and finds none. Edit it with any text editor.
+
+A setting set to `default` takes its value from `Defaults.ini`, which every head tracking mod that keeps its settings in `CameraUnlock.ini` reads. Head tracking mods that keep their settings in another file do not read it. Writing a value in place of `default` changes that setting for this game only. When the mod saves a setting that a hotkey changed in game, it writes the new value in place of `default`, so that setting no longer follows `Defaults.ini` in this game until you set it to `default` again.
+
+`Defaults.ini` is `%AppData%\CameraUnlock\Defaults.ini` on Windows; `$XDG_CONFIG_HOME/CameraUnlock/Defaults.ini` on Linux, or `~/.config/CameraUnlock/Defaults.ini` where `XDG_CONFIG_HOME` is not set, under Wine and Proton too; and `~/Library/Application Support/CameraUnlock/Defaults.ini` on macOS. The mod's log, where it writes one, names the file it read.
+
+When the mod starts and finds no `Defaults.ini`, it creates one holding the built-in values, unless Windows runs the game as a packaged app. The mod never changes `Defaults.ini` after that. Edit it with any text editor.
+
+The built-in value of each setting set to `default` below:
+
+- `UdpPort=4242`
+- `EnableOnStartup=true`
+- `WorldSpaceYaw=true`
+- `RotationEnabled=true`
+- `DataFreshnessMs=500`
+- `LocalSmoothing=0.0`
+- `RemoteSmoothing=0.15`
+- `PositionEnabled=true`
+- `PositionLimitX=0.3`
+- `PositionLimitY=0.2`
+- `PositionLimitYDown=0.2`
+- `PositionLimitZ=0.4`
+- `PositionLimitZBack=0.1`
+- `CollisionEnabled=true`
+- `ToggleKey=End, Ctrl+Shift+Y`
+- `CycleTrackingModeKey=PageUp, Ctrl+Shift+G`
+- `YawModeKey=PageDown, Ctrl+Shift+H`
+
+With every setting at its default, the file reads:
 
 ```ini
-[General]
-; Start with tracking active
-EnableOnStartup=true
-Port=4242                  ; UDP port OpenTrack sends to
-DataFreshnessMs=500        ; Hold the last pose if no packet arrives within this window (ms)
-; Yaw mode: true = horizon-locked yaw (default), false = camera-local
-WorldSpaceYaw=true
-; Draw the mod's own marker at the aim point as well. The game's own
-; crosshair is already moved there, so this is a diagnostic.
-ShowAimMarker=false
+; Spec Ops: The Line head tracking settings.
+; Comments start with ; and go on their own line. Text after a value is part of the value.
+; Hotkeys are key names such as End, PageUp or Ctrl+Shift+Y. Separate several with commas; leave empty for none.
+; A setting set to default takes its value from Defaults.ini, which every head tracking mod
+; that keeps its settings in CameraUnlock.ini reads: %AppData%\CameraUnlock\Defaults.ini on
+; Windows, $XDG_CONFIG_HOME/CameraUnlock/Defaults.ini (normally ~/.config/CameraUnlock) on
+; Linux, under Wine and Proton too, and ~/Library/Application Support/CameraUnlock/Defaults.ini
+; on macOS. The log names the file it read. Write a value instead of default to change that
+; setting for this game only.
 
-[FieldOfView]
-; Multiplies the field of view the game renders with. The game draws 72 degrees
-; horizontally from the hip, so 1.25 gives 90. Range 0.5-2.0.
-Scale=1.0
+[CameraUnlock]
+; Written by the mod. Leave this section in place.
+ConfigFormat=1
+
+[Network]
+; UDP port the mod receives tracker data on (OpenTrack protocol).
+UdpPort=default
+
+[General]
+; true: head tracking is on when the game starts. ToggleKey turns it on and off.
+EnableOnStartup=default
+; true: yaw turns around the world's up axis. false: around the camera's own up axis.
+WorldSpaceYaw=default
+; true: turning your head turns the view.
+; Tracking mode at startup, with PositionEnabled. The mode hotkey changes both.
+RotationEnabled=default
+; Milliseconds a tracker packet stays current. Once the tracker has sent nothing
+; for this long, the mod stops following it until data arrives again.
+DataFreshnessMs=default
 
 [Smoothing]
-; 0.0 = responsive, 1.0 = heavy. Covers rotation and position. The value is
-; picked per connection from the packet source address.
-LocalSmoothing=0.0         ; Tracker running on this PC (loopback)
-RemoteSmoothing=0.15       ; Phone or other device on the network
+; Smoothing when the tracker runs on this PC. 0 is the least, 1 the most.
+LocalSmoothing=default
+; Smoothing when the tracker is another device on the network, such as a phone.
+; 0 is the least, 1 the most.
+RemoteSmoothing=default
 
 [Position]
-; 6DOF positional tracking: leaning moves the camera as well as turning it.
-; Turn the whole section off here.
-Enabled=true
-LimitX=0.30                ; Max lateral lean in metres of head movement
-LimitY=0.20                ; Max upward move in metres
-LimitYDown=0.20            ; Max downward move in metres (separate budget: ducking has less room than stretching up)
-LimitZ=0.40                ; Max forward lean in metres
-LimitZBack=0.10            ; Max backward lean in metres (kept short so the camera does not clip through the player)
-PositionScale=100.0        ; World units (cm) per metre of head translation - the main tuning knob. Higher = more camera movement for the same lean
-
-[Collision]
-; Stop a lean at the level's geometry instead of pushing the view through a wall.
-Enabled=true
-; How far short of a surface the leaned view stops, in world units (cm). 0-100.
-Padding=10.0
+; true: moving your head moves the view.
+; Tracking mode at startup, with RotationEnabled. The mode hotkey changes both.
+PositionEnabled=default
+; How far, in metres, leaning left or right can move the view.
+PositionLimitX=default
+; How far, in metres, raising your head can move the view.
+PositionLimitY=default
+; How far, in metres, lowering your head can move the view.
+PositionLimitYDown=default
+; How far, in metres, leaning forward can move the view.
+PositionLimitZ=default
+; How far, in metres, leaning back can move the view.
+PositionLimitZBack=default
+; true: leaning stops at walls instead of moving the view through them.
+CollisionEnabled=default
+; How far, in centimetres, the view is held off a wall when you lean into it.
+CollisionMargin=10.0
 
 [Hotkeys]
-; Virtual-key codes. Defaults: End (toggle), Page Up (cycle tracking mode), Page Down (yaw mode).
-Toggle=0x23
-CycleMode=0x21
-YawMode=0x22
-; Chord alternatives: Ctrl+Shift+Y (toggle), Ctrl+Shift+G (cycle tracking mode), Ctrl+Shift+H (yaw mode).
-ChordToggle=true
-ChordCycleMode=true
-ChordYawMode=true
+; Turns head tracking on and off.
+ToggleKey=default
+; Changes the tracking mode: rotation and position, rotation only, position only.
+CycleTrackingModeKey=default
+; Switches yaw between the world's up axis and the camera's own (WorldSpaceYaw).
+YawModeKey=default
+
+[FieldOfView]
+; Multiplies the field of view the game renders with: 0.5 to 2.0. 1.0 leaves it alone;
+; the game draws 72 degrees horizontally from the hip, so 1.25 gives 90. Only the
+; picture widens: the game keeps its own value for everything it decides with, so
+; shots land exactly where they did. Aiming down sights is scaled by the same factor,
+; so the sights keep their relative zoom.
+FovScale=1.0
 ```
+<!-- /cameraunlock:config -->
 
-`WorldSpaceYaw=true` (default) keeps yaw rotating around the world up-axis, so "up" stays gravity-aligned even when you look up or down. Set it to `false` for camera-local yaw, which follows the camera's current up-axis. Toggle it at runtime with `Page Down` or `Ctrl+Shift+H` without restarting.
+`FovScale` under `[FieldOfView]` widens the picture. Spec Ops has no field of view setting of its own; it renders 72 degrees horizontally from the hip and 50 down the sights, so `FovScale=1.25` gives 90 and 62.5. Aiming down sights is multiplied by the same factor, which keeps the sights' relative zoom, and shots land exactly where they did.
 
-`FieldOfView.Scale` widens the picture. Spec Ops has no field of view setting of its own; it renders 72 degrees horizontally from the hip and 50 down the sights, so `Scale=1.25` gives 90 and 62.5. Aiming down sights is multiplied by the same factor, which keeps the sights' relative zoom, and shots land exactly where they did.
+`CollisionEnabled` stops a lean at the level's geometry. The game places and collides its own camera before the head pose is added, so nothing in the engine knows the view has leaned: without this, leaning towards cover walks the camera into it and you see the level from inside the wall. The mod casts the lean as a ray from the camera the game chose - the same trace the game resolves its crosshair with - and shortens the lean to what it reaches, keeping its direction. `CollisionMargin` is how far short of the surface the view stops, in centimetres. The crosshair follows the shortened lean, so it still marks the point the shot lands on. The clamp needs the game to have run its own crosshair trace once, which happens in the first frames of gameplay; before that a lean is unbounded.
 
-`Collision.Enabled` stops a lean at the level's geometry. The game places and collides its own camera before the head pose is added, so nothing in the engine knows the view has leaned: without this, leaning towards cover walks the camera into it and you see the level from inside the wall. The mod casts the lean as a ray from the camera the game chose - the same trace the game resolves its crosshair with - and shortens the lean to what it reaches, keeping its direction. `Padding` is how far short of the surface the view stops. The crosshair follows the shortened lean, so it still marks the point the shot lands on. The clamp needs the game to have run its own crosshair trace once, which happens in the first frames of gameplay; before that a lean is unbounded.
+**Smoothing is chosen per connection, and only loopback counts as local.** A tracker sending to `127.0.0.1` gets `LocalSmoothing`; anything else, including a tracker running on this very PC that sends to the machine's own LAN address, is classified remote and gets `RemoteSmoothing`.
 
 The game constrains its picture to 16:9 whatever the window is, so at any other resolution it draws into a letterboxed band with black bars. The crosshair is placed inside that band rather than the window, which matters as soon as you move off centre.
+
+The game's crosshair always follows the aim point, and there is no setting for sensitivity, inversion or deadzone: set those in your tracker.
 
 ## Troubleshooting
 
@@ -215,7 +271,7 @@ The game constrains its picture to 16:9 whatever the window is, so at any other 
 - While it waits it says so every 30 seconds, as `Still waiting for UDP port 4242`.
 
 **Jittery or unstable tracking**
-- Raise `LocalSmoothing` or `RemoteSmoothing` toward `1.0` in the INI. Which one applies is decided by the packet's source address, not by which machine the tracker runs on: only `127.0.0.1` counts as local, so a tracker on this PC that sends to your LAN address gets `RemoteSmoothing`.
+- Raise `LocalSmoothing` or `RemoteSmoothing` toward `1.0` in `CameraUnlock.ini`. Which one applies is decided by the packet's source address, not by which machine the tracker runs on: only `127.0.0.1` counts as local, so a tracker on this PC that sends to your LAN address gets `RemoteSmoothing`.
 - Add a small deadzone in your tracker (OpenTrack's Filter tab, or the phone app's own setting) to ignore tiny head movements.
 - For wireless or phone trackers, increase smoothing in the tracker app as well.
 

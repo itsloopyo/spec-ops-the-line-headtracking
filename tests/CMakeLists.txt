@@ -11,7 +11,6 @@ add_executable(SpecOpsTheLineHeadTracking_tests
     config_sanitize_tests.cpp
     config_load_tests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/aim_marker.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../src/config.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/legacy_config/legacy_config.cpp
 )
 
@@ -65,16 +64,44 @@ target_compile_definitions(specops_hotkeys_oracle PRIVATE
 
 add_executable(config_differential_tests
     ${SPECOPS_DIFF_DIR}/differential_tests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/config.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/legacy_config/legacy_config.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/path_utils.cpp
 )
 target_include_directories(config_differential_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../src
     ${SPECOPS_DIFF_DIR})
 target_compile_definitions(config_differential_tests PRIVATE
-    SPECOPS_DIFFERENTIAL_DATA="${SPECOPS_DIFF_DIR}/data")
+    SPECOPS_DIFFERENTIAL_DATA="${SPECOPS_DIFF_DIR}/data"
+    SPECOPS_COMMITTED_CONFIG="${CMAKE_CURRENT_SOURCE_DIR}/../config/CameraUnlock.ini")
 target_link_libraries(config_differential_tests PRIVATE
     cameraunlock specops_config_oracle specops_hotkeys_oracle)
 if(MSVC)
     target_compile_options(config_differential_tests PRIVATE /W4 /WX /permissive-)
 endif()
 add_test(NAME config_differential_tests COMMAND config_differential_tests)
+
+# Core's canonical config lint over the committed file and every file the differential test
+# migrated, which it writes beside itself under migrated.
+add_test(NAME config_lint COMMAND node
+    ${SPECOPS_DIFF_DIR}/lint-migrated.mjs
+    $<TARGET_FILE_DIR:config_differential_tests>/migrated)
+set_tests_properties(config_lint PROPERTIES DEPENDS config_differential_tests)
+
+# The committed config against the table, a first start, the toggles' saves and the legacy
+# file's ANSI path. `--render-config <path>` makes it write the committed file instead
+# (pixi run render-config).
+add_executable(config_tests
+    config_tests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/config.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/legacy_config/legacy_config.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/path_utils.cpp
+)
+target_include_directories(config_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../src)
+target_link_libraries(config_tests PRIVATE cameraunlock)
+target_compile_definitions(config_tests PRIVATE
+    SPECOPS_COMMITTED_CONFIG="${CMAKE_CURRENT_SOURCE_DIR}/../config/CameraUnlock.ini")
+if(MSVC)
+    target_compile_options(config_tests PRIVATE /W4 /WX /permissive-)
+endif()
+add_test(NAME config_tests COMMAND config_tests)

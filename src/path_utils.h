@@ -13,10 +13,11 @@ std::wstring GetModuleDirectoryW();
 // Wide path to a file beside this DLL. Empty when the directory is unknown.
 std::wstring GetModulePathW(const char* filename);
 
-// Narrow form of the same path, for the core APIs that take std::string. Empty
-// when the directory is unknown, or when the path does not survive the ANSI
-// codepage - callers must not fall back to a bare filename, which
-// GetPrivateProfileString would resolve against the Windows directory.
-std::string GetModulePath(const char* filename);
+// The ANSI path the pre-canonical builds opened @p path by, for the legacy import: the path
+// itself where the active ANSI codepage holds every character of its folder, else with the
+// folder's 8.3 short name. Empty where neither gives a path; those builds did not start there.
+// Never a bare filename, which GetPrivateProfileString would resolve against the Windows
+// directory.
+std::string LegacyAnsiPath(const std::wstring& path);
 
 }

@@ -25,6 +25,15 @@ build = { cmd = "cmake --build build --config Debug", depends-on = ["setup"] }
 # Build release configuration.
 build-release = { cmd = "cmake --build build --config Release", depends-on = ["setup"] }
 
+# Rewrite config/CameraUnlock.ini, the committed copy of the CameraUnlock.ini the mod creates at
+# first launch, from the config table after a change to a row, a comment or a default, then
+# rewrite the per_game of launcher-manifest.json's config descriptor from it.
+render-config = { cmd = "build/tests/Release/config_tests.exe --render-config config/CameraUnlock.ini && node cameraunlock-core/scripts/encode-seed.mjs", depends-on = ["build-release"] }
+
+# Check the newest installer ZIP's launcher manifest, and that the Nexus ZIP carries no config.
+# Reads the ZIPs already in release/, so package first.
+validate-manifest = { cmd = "node cameraunlock-core/scripts/validate-manifest.mjs" }
+
 # Build + deploy release to the game directory.
 install = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/deploy.ps1 Release", depends-on = ["build-release"] }
 
@@ -55,4 +64,6 @@ release = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/release.ps1"
 update-deps = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/update-deps.ps1" }
 
 [dependencies]
-# No pixi dependencies - using system CMake and Visual Studio 2022.
+# CMake and Visual Studio come from the system. Packaging, validate-manifest,
+# render-config and the config lint run node.
+nodejs = "==26.5.0"

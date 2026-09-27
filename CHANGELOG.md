@@ -7,7 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Settings move to `Binaries\Win32\CameraUnlock.ini`. Earlier versions of the mod kept these settings in `SpecOpsTheLineHeadTracking.ini`, in the same folder. The first time this version starts and finds no `CameraUnlock.ini`, it reads your settings from `SpecOpsTheLineHeadTracking.ini` and writes them into `CameraUnlock.ini`. It never changes `SpecOpsTheLineHeadTracking.ini`, and does not read it again while `CameraUnlock.ini` exists.
+- A setting that the defaults the README shows set to `default` is written as `default` when you never changed it from the default earlier versions used, because `SpecOpsTheLineHeadTracking.ini` does not hold it or holds that default. It then follows `Defaults.ini`, so it takes the value `Defaults.ini` gives it, or the built-in value where `Defaults.ini` gives none, which can differ from the default earlier versions used. A setting you changed is written with the value imported for it, or as `default` where that value equals its default at that start.
+- `RotationEnabled` and `PositionEnabled` are one setting here, the tracking mode, so both are written as `default` or neither is.
+- Comments, and keys the mod never read, are not carried over. Nor are these, where your old file had them:
+  - A `[Position] PositionScale` you changed from 100. Set the strength of a lean in your tracker instead.
+  - `[General] ShowAimMarker=true`. The mod's own aim marker has no setting and is not drawn.
+  - A `[Hotkeys]` code on Ctrl, Shift or Alt alone. That hotkey is left unbound and keeps its Ctrl+Shift chord.
+- An older version of the mod reads `SpecOpsTheLineHeadTracking.ini` and never reads `CameraUnlock.ini`, so a setting you change after updating is not in `SpecOpsTheLineHeadTracking.ini`.
+- Deleting only `CameraUnlock.ini` makes the next start read `SpecOpsTheLineHeadTracking.ini` again. To go back to the defaults, replace everything in `CameraUnlock.ini` with the defaults the README shows. Every setting they set to `default` then follows `Defaults.ini`.
+- Hotkeys are written as key names, and each hotkey lists every key that triggers it, the Ctrl+Shift chord included: `ToggleKey=End, Ctrl+Shift+Y`. The import carries over each key you had bound and each chord you had switched on or off, and now each one can be changed or removed like any other key.
+- Settings are renamed in `CameraUnlock.ini`: `[General] Port` is `[Network] UdpPort`; `[FieldOfView] Scale` is `[FieldOfView] FovScale`; the `[Position]` limits are `PositionLimitX`, `PositionLimitY`, `PositionLimitYDown`, `PositionLimitZ` and `PositionLimitZBack`; `[Collision] Enabled` and `Padding` are `[Position] CollisionEnabled` and `CollisionMargin`; and `[Hotkeys] Toggle`, `CycleMode` and `YawMode` with `ChordToggle`, `ChordCycleMode` and `ChordYawMode` are `ToggleKey`, `CycleTrackingModeKey` and `YawModeKey`. `[Position] Enabled` chose the tracking mode at startup; that is now the pair `RotationEnabled` and `PositionEnabled`. `[General] EnableOnStartup`, `DataFreshnessMs` and `WorldSpaceYaw` and `[Smoothing] LocalSmoothing` and `RemoteSmoothing` keep their names. The import carries every one of these values over.
+- The tracking mode that Page Up or Ctrl+Shift+G selects, and the yaw mode that Page Down or Ctrl+Shift+H selects, are now saved to `CameraUnlock.ini` as soon as you change them and come back at the next start. End still changes the current session only.
+- `CollisionMargin` in `CameraUnlock.ini` takes any value from 0 up; earlier versions used at most 100 for `[Collision] Padding`.
+- `uninstall.cmd` keeps `Binaries\Win32\CameraUnlock.ini` and `Binaries\Win32\SpecOpsTheLineHeadTracking.ini`, so your settings survive a reinstall.
+- A `SpecOpsTheLineHeadTracking.ini` whose position limits include one above 10 is not imported, because `CameraUnlock.ini` cannot hold that value. The mod runs on the file's values with the same exceptions as an imported file. It creates no `CameraUnlock.ini`, saves nothing that session, and says so in the log at every start until the value is fixed.
+- A `SpecOpsTheLineHeadTracking.ini` that earlier versions refused to start with, a `[General] Port` outside 1024 to 65535, or a game folder whose path neither the ANSI code page nor an 8.3 short name can spell, is not imported either, and this version does not start until it is fixed, as earlier versions did not. A `UdpPort` in `CameraUnlock.ini` takes any port from 1 to 65535.
+- When `CameraUnlock.ini` cannot be created, for example because `Binaries\Win32` cannot be written, the mod runs on the settings it read from `SpecOpsTheLineHeadTracking.ini`, or on its defaults where there is none, saves nothing that session, and tries again at the next start. Earlier versions did not start at all when there was no `SpecOpsTheLineHeadTracking.ini` and they could not create one.
+
+### Removed
+
+- `[General] ShowAimMarker`. The mod's own aim marker was a diagnostic, off by default; the game's crosshair always follows the aim.
+- `[Position] PositionScale`. The mod converts a lean at the 100 world units per metre it shipped with; set the strength of a lean in your tracker app instead. With it at its shipped default the camera moves as it did before.
+
 ### Added
+
+- A setting set to `default` in `CameraUnlock.ini` takes its value from `Defaults.ini`, which every head tracking mod that keeps its settings in `CameraUnlock.ini` reads. Head tracking mods that keep their settings in another file do not read it, and neither do earlier versions of this mod. Writing a value in place of `default` changes that setting for this game only. When the mod saves a setting that a hotkey changed in game, it writes the new value in place of `default`, so that setting no longer follows `Defaults.ini` in this game until you set it to `default` again.
+- `Defaults.ini` is `%AppData%\CameraUnlock\Defaults.ini` on Windows; `$XDG_CONFIG_HOME/CameraUnlock/Defaults.ini` on Linux, or `~/.config/CameraUnlock/Defaults.ini` where `XDG_CONFIG_HOME` is not set, under Wine and Proton too; and `~/Library/Application Support/CameraUnlock/Defaults.ini` on macOS. The mod's log, where it writes one, names the file it read.
+- When the mod starts and finds no `Defaults.ini`, it creates one holding the built-in values, unless Windows runs the game as a packaged app. The mod never changes `Defaults.ini` after that.
 - Added camera collision for positional tracking, `[Collision] Enabled` (default on) and
   `[Collision] Padding` (default 10 world units). The head pose moves the render eye after
   the game has already placed and collided its own camera, so a lean towards cover used to
